@@ -7,6 +7,7 @@
 
 import numpy as np
 import copy
+from common.camera import *
 from common.skeleton import Skeleton
 from common.mocap_dataset import MocapDataset
 from common.camera import normalize_screen_coordinates, image_coordinates
@@ -231,7 +232,7 @@ class Human36mDataset(MocapDataset):
                                                    cam['tangential_distortion']))
         
         # Load serialized dataset
-        data = np.load(path)['positions_3d'].item()
+        data = np.load(path, allow_pickle = True)['positions_3d'].item()
         
         self._data = {}
         for subject, actions in data.items():
@@ -252,4 +253,59 @@ class Human36mDataset(MocapDataset):
             
     def supports_semi_supervised(self):
         return True
-   
+
+def preprocess_Human36m(dataset_path, dataset_path_2d):
+    print('Loading dataset...')
+    dataset = Human36mDataset(dataset_path)
+    print('Preparing data...')
+    for subject in dataset.subjects():
+        for action in dataset[subject].keys():
+            anim = dataset[subject][action]
+            
+            positions_3d = []
+            
+            for cam in anim['cameras']:
+                pos_3d = anim['positions']
+                pos_3d = world_to_camera(anim['positions'], R=cam['orientation'], t=cam['translation'])
+                pos_3d[:, 1:] -= pos_3d[:, :1] # Remove global offset, but keep trajectory in first position
+                positions_3d.append(pos_3d)
+
+            anim['positions_3d'] = positions_3d
+
+    print('Loading 2D detections...')
+    keypoints = np.load(dataset_path_2d, allow_pickle = True)
+    keypoints_symmetry = keypoints['metadata'].item()['keypoints_symmetry']
+    kps_left, kps_right = list(keypoints_symmetry[0]), list(keypoints_symmetry[1])
+    joints_left, joints_right = list(dataset.skeleton().joints_left()), list(dataset.skeleton().joints_right())
+    keypoints = keypoints['positions_2d'].item()
+
+    # shorten sequence
+    for subject in dataset.subjects():
+        assert subject in keypoints, 'Subject {} is missing from the 2D detections dataset'.format(subject)
+        for action in dataset[subject].keys():
+            assert action in keypoints[subject], 'Action {} of subject {} is missing from the 2D detections dataset'.format(action, subject)
+            for cam_idx in range(len(keypoints[subject][action])):
+                
+                # We check for >= instead of == because some videos in H3.6M contain extra frames
+                mocap_length = dataset[subject][action]['positions_3d'][cam_idx].shape[0]
+                assert keypoints[subject][action][cam_idx].shape[0] >= mocap_length
+                
+                if keypoints[subject][action][cam_idx].shape[0] > mocap_length:
+                    # Shorten sequence
+                    #print("subject {} - action {} - cam_idx {} - mocap_length {} - key_length {} ".format(subject, action, cam_idx, mocap_length, keypoints[subject][action][cam_idx].shape[0]))
+                
+                    keypoints[subject][action][cam_idx] = keypoints[subject][action][cam_idx][:mocap_length]
+                
+
+            assert len(keypoints[subject][action]) == len(dataset[subject][action]['positions_3d'])
+    
+    for subject in keypoints.keys():
+        for action in keypoints[subject]:
+            for cam_idx, kps in enumerate(keypoints[subject][action]):
+                # Normalize camera frame
+                cam = dataset.cameras()[subject][cam_idx]
+                kps[..., :2] = normalize_screen_coordinates(kps[..., :2], w=cam['res_w'], h=cam['res_h'])
+                keypoints[subject][action][cam_idx] = kps
+
+    return dataset, keypoints, kps_left, kps_right, joints_left, joints_right
+    

@@ -75,7 +75,9 @@ def parse_args():
     parser.set_defaults(data_augmentation=True)
     parser.set_defaults(test_time_augmentation=True)
     
-    args = parser.parse_args()
+    # args = parser.parse_args()
+    args = parser.parse_args(args=[])
+
     # Check invalid configuration
     if args.resume and args.evaluate:
         print('Invalid flags: --resume and --evaluate cannot be set at the same time')

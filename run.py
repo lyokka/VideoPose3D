@@ -5,6 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 #
 
+import pdb
+
 import numpy as np
 
 from common.arguments import parse_args
@@ -58,7 +60,7 @@ for subject in dataset.subjects():
         anim['positions_3d'] = positions_3d
 
 print('Loading 2D detections...')
-keypoints = np.load('data/data_2d_' + args.dataset + '_' + args.keypoints + '.npz')
+keypoints = np.load('data/data_2d_' + args.dataset + '_' + args.keypoints + '.npz', allow_pickle = True)
 keypoints_symmetry = keypoints['metadata'].item()['keypoints_symmetry']
 kps_left, kps_right = list(keypoints_symmetry[0]), list(keypoints_symmetry[1])
 joints_left, joints_right = list(dataset.skeleton().joints_left()), list(dataset.skeleton().joints_right())
@@ -157,6 +159,8 @@ if action_filter is not None:
     
 cameras_valid, poses_valid, poses_valid_2d = fetch(subjects_test, action_filter)
 
+# ------------------------------------------------------- model -------------------------------------------------------------------------------------
+
 filter_widths = [int(x) for x in args.architecture.split(',')]
 if not args.disable_optimizations and not args.dense and args.stride == 1:
     # Use optimized model for single-frame predictions
@@ -249,8 +253,7 @@ if not args.evaluate:
     epoch = 0
     initial_momentum = 0.1
     final_momentum = 0.001
-    
-    
+
     train_generator = ChunkedGenerator(args.batch_size//args.stride, cameras_train, poses_train, poses_train_2d, args.stride,
                                        pad=pad, causal_shift=causal_shift, shuffle=True, augment=args.data_augmentation,
                                        kps_left=kps_left, kps_right=kps_right, joints_left=joints_left, joints_right=joints_right)
@@ -378,6 +381,10 @@ if not args.evaluate:
             for _, batch_3d, batch_2d in train_generator.next_epoch():
                 inputs_3d = torch.from_numpy(batch_3d.astype('float32'))
                 inputs_2d = torch.from_numpy(batch_2d.astype('float32'))
+
+                # print("inputs_3d shape : ", inputs_3d.shape)
+                # print("inputs_2d shape : ", inputs_2d.shape)
+
                 if torch.cuda.is_available():
                     inputs_3d = inputs_3d.cuda()
                     inputs_2d = inputs_2d.cuda()

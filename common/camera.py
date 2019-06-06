@@ -7,9 +7,11 @@
 
 import numpy as np
 import torch
+import cv2
 
 from common.utils import wrap
 from common.quaternion import qrot, qinverse
+from scipy.spatial.transform import rotation
 
 def normalize_screen_coordinates(X, w, h): 
     assert X.shape[-1] == 2
@@ -29,11 +31,32 @@ def world_to_camera(X, R, t):
     Rt = wrap(qinverse, R) # Invert rotation
     return wrap(qrot, np.tile(Rt, (*X.shape[:-1], 1)), X - t) # Rotate and translate
 
+def world_to_camera_cv2(pts_3d_world_homo, rvec, tvec):
+    rmat, _ = cv2.Rodrigues(rvec)
+    extrinsics = np.zeros((3,4))
+    extrinsics[:,:3] = rmat
+    extrinsics[:,3] = tvec.reshape(-1)
+    
+    pts_3d_cam = np.matmul(extrinsics, pts_3d_world_homo)
+    
+    return pts_3d_cam
+
     
 def camera_to_world(X, R, t):
     return wrap(qrot, np.tile(R, (*X.shape[:-1], 1)), X) + t
 
-    
+def extrinsic_matrix(R_q, t):
+    # [xc,yc,zc,1] = matmul(ext, [xw, yw, zw, 1])
+
+    extMat = np.zeros((4,4))
+    R = Rotation.from_quat(R_q).as_dcm()
+    R = -np.flip(np.flip(R, axis=0), axis =1) * np.array([[1,-1,1],[-1,1,-1],[-1,1,-1]])
+    extMat[:3,:3] = R
+    extMat[3,3] = 1
+    extMat[:3,3] = np.matmul(-R, t)
+
+    return extMat
+
 def project_to_2d(X, camera_params):
     """
     Project 3D points to 2D using the Human3.6M camera projection function.
@@ -88,3 +111,35 @@ def project_to_2d_linear(X, camera_params):
     XX = torch.clamp(X[..., :2] / X[..., 2:], min=-1, max=1)
     
     return f*XX + c
+
+def camera_calibration(chess_board_shape, images):
+    # camera calibration using opencv
+    # termination criteria
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+    c_columns = chess_board_shape[0]
+    c_rows = chess_board_shape[1]
+    
+    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+    objp = np.zeros((c_rows * c_columns,3), np.float32)
+    objp[:,:2] = np.mgrid[0:c_columns, 0:c_rows].T.reshape(-1,2) * 1000
+    
+    # Arrays to store object points and image points from all the images.
+    objpoints = [] # 3d point in real world space
+    imgpoints = [] # 2d points in image plane.
+    
+    for fname in images:
+        img = cv2.imread(fname)
+        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+
+        # Find the chess board corners
+        ret, corners = cv2.findChessboardCorners(gray, (c_columns,c_rows),None)
+
+        # If found, add object points, image points (after refining them)
+        if ret == True:
+            objpoints.append(objp)
+
+            corners2 = cv2.cornerSubPix(gray,corners,(11,11),(-1,-1),criteria)
+            imgpoints.append(corners2)
+            
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None)
+    return mtx, dist
