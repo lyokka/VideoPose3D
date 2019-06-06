@@ -4,6 +4,8 @@
 This is the implementation of the approach described in the paper:
 > Dario Pavllo, Christoph Feichtenhofer, David Grangier, and Michael Auli. [3D human pose estimation in video with temporal convolutions and semi-supervised training](https://arxiv.org/abs/1811.11742). In Conference on Computer Vision and Pattern Recognition (CVPR), 2019.
 
+# I forked this for model parsing and visualization with wild data
+
 More demos are available at https://dariopavllo.github.io/VideoPose3D
 
 <p align="center"><img src="images/demo_yt.gif" width="70%" alt="" /></p>
