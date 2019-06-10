@@ -50,7 +50,7 @@ def deterministic_random(min_value, max_value, data):
     return int(raw_value / (2**32 - 1) * (max_value - min_value)) + min_value
 
 def wild2human36m_xianhui(data, w, h):
-    xianhui_kpts_name = list(data["1"].keys())[1:]
+    xianhui_kpts_name = sorted(list(data["1"].keys()))
     xianhui_kpts_dict = {}
     xianhui_kpts_inverse_dict = {}
     for i in range(len(xianhui_kpts_name)):
@@ -66,7 +66,10 @@ def wild2human36m_xianhui(data, w, h):
         human36m_kpts_dict[human36m_kpts_name[i]] = i
         human36m_kpts_inverse_dict[i] = human36m_kpts_name[i]
         
-    pair = [(0,5),(1,18),(2,19),(3,20),(4,10),(5,11),(6,12),(7,3),(8,1),(9,0),(10,0),(11,7),(12,8),(13,9),(14,15),(15,16),(16,17)]
+    pair = [(0,2),(1,19),(2,15),(3,12),
+            (4,10),(5,6),(6,3),(7,0),(8,11),
+            (9,1),(10,1),(11,9),(12,5),
+            (13,4),(14,18),(15,14),(16,13)]
 
     pts_3d = []
     pts_2d = []
@@ -76,14 +79,22 @@ def wild2human36m_xianhui(data, w, h):
         pts_2d_ = []
 
         for p in pair:
-            x = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["x"]
-            y = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["y"]
-            z = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["z"]
-            x_2d = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["view_x"]
-            y_2d = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["view_y"]
-            pts_3d_.append([x,y,z])
-            # pts_2d_.append([(x_2d), (y_2d)])
-            pts_2d_.append([(x_2d)*w, (1-y_2d)*h])
+            # print("p : ", p)
+            # print(xianhui_kpts_inverse_dict[p[1]])
+            try:
+                x = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["x"]
+                y = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["y"]
+                z = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["z"]
+                x_2d = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["view_x"]
+                y_2d = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["view_y"]
+                pts_3d_.append([x,y,z])
+                # pts_2d_.append([(x_2d), (y_2d)])
+                pts_2d_.append([(x_2d)*w, (1-y_2d)*h])
+            except:
+                print(p)
+                print(p[1])
+                print(xianhui_kpts_inverse_dict)
+                print(xianhui_kpts_inverse_dict[p[1]])
             
         pts_3d.append(pts_3d_)
         pts_2d.append(pts_2d_)

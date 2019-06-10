@@ -31,16 +31,27 @@ def world_to_camera(X, R, t):
     Rt = wrap(qinverse, R) # Invert rotation
     return wrap(qrot, np.tile(Rt, (*X.shape[:-1], 1)), X - t) # Rotate and translate
 
-def world_to_camera_cv2(pts_3d_world_homo, rvec, tvec):
+def world2camera_cv(pts_3d_world_homo, rvec, tvec):
     rmat, _ = cv2.Rodrigues(rvec)
-    extrinsics = np.zeros((3,4))
-    extrinsics[:,:3] = rmat
-    extrinsics[:,3] = tvec.reshape(-1)
+    extrinsics = np.zeros((4,4))
+    extrinsics[:3,:3] = rmat
+    extrinsics[:3,3] = tvec.reshape(-1)
+    extrinsics[3,3] = 1
     
     pts_3d_cam = np.matmul(extrinsics, pts_3d_world_homo)
     
     return pts_3d_cam
 
+def camera2world_cv(pts_3d_cam_homo, rvec, tvec):
+    rmat, _ = cv2.Rodrigues(rvec)
+    extrinsics = np.zeros((4,4))
+    extrinsics[:3,:3] = rmat
+    extrinsics[:3,3] = tvec.reshape(-1)
+    extrinsics[3,3] = 1
+    
+    pts_3d_cam = np.matmul(np.linalg.inv(extrinsics), pts_3d_cam_homo)
+    
+    return pts_3d_cam
     
 def camera_to_world(X, R, t):
     return wrap(qrot, np.tile(R, (*X.shape[:-1], 1)), X) + t
@@ -49,7 +60,7 @@ def extrinsic_matrix(R_q, t):
     # [xc,yc,zc,1] = matmul(ext, [xw, yw, zw, 1])
 
     extMat = np.zeros((4,4))
-    R = Rotation.from_quat(R_q).as_dcm()
+    R = rotation.from_quat(R_q).as_dcm()
     R = -np.flip(np.flip(R, axis=0), axis =1) * np.array([[1,-1,1],[-1,1,-1],[-1,1,-1]])
     extMat[:3,:3] = R
     extMat[3,3] = 1
