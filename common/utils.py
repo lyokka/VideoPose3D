@@ -83,8 +83,8 @@ def wild2human36m_xianhui(data, w, h):
             # print(xianhui_kpts_inverse_dict[p[1]])
             try:
                 x = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["x"]
-                y = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["y"]
-                z = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["z"]
+                y = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["z"]
+                z = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["y"]
                 x_2d = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["view_x"]
                 y_2d = data[str(i+1)][xianhui_kpts_inverse_dict[p[1]]]["view_y"]
                 pts_3d_.append([x,y,z])

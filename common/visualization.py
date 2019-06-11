@@ -356,6 +356,83 @@ def get_line_3d_segs(pts, k, skeleton, human36m_kpts_name):
         
     return line_3d_segs
 
+def get_line_2d_segs(pts, k, skeleton, human36m_kpts_name):
+    line_2d_segs = []
+    cols = []
+    for j, j_parent in enumerate(skeleton.parents()):
+        if j_parent == -1:
+            continue
+
+        col = 'red' if j in skeleton.joints_right() else 'black'
+        cols.append(col)
+        trace = go.Scatter(
+                    x = [pts[k, j, 0], pts[k, j_parent, 0]], 
+                    y = [pts[k, j, 1], pts[k, j_parent, 1]], 
+                    marker = dict(size=5, color="blue"),
+                    text = [human36m_kpts_name[j]],
+                    line = dict(color=col, width=5))
+        line_2d_segs.append(trace)
+    
+    #if k != 0:
+    trajectory = go.Scatter(
+                    x = pts[:k, 0, 0], 
+                    y = pts[:k, 0, 1], 
+                    marker = dict(color='#1f77b4', size=1),
+                    line = dict(color='#1f77b4', width=1))
+    line_2d_segs.append(trajectory)
+        
+    return line_2d_segs
+
+def generate_frames_layout_2d(pts, skeleton, human36m_kpts_name, x_range, y_range):
+    frames = []
+
+    for k in range(len(pts)):
+        frames.append(dict(data = get_line_2d_segs(pts, k, skeleton, human36m_kpts_name), name="frame{}".format(k+1)))    
+    
+    sliders=[
+        dict(
+            steps=[dict(method='animate',
+                        args= [['frame{}'.format(k + 1)],
+                                dict(mode='immediate',
+                                     frame= dict(duration=70, redraw= True),
+                                     transition=dict(duration=0))],
+                                label='{:d}'.format(k+1)) for k in range(len(pts))], 
+                        transition= dict(duration=0),
+                    x=0,
+                    y=0, 
+                    currentvalue=dict(font=dict(size=12), 
+                                      prefix='slice: ', 
+                                      visible=True, 
+                                      xanchor='center'),  
+                    len=1.0)]
+    
+    layout = dict(
+                width=800,
+                height=700,
+                autosize=False,
+                title='action animation',              
+                xaxis=dict(
+                    autorange=False,
+                    range=x_range),
+                yaxis=dict(
+                    autorange=False,
+                    range=y_range),
+                updatemenus=[
+                    dict(type='buttons',
+                         showactive=False,
+                         y=1,
+                         x=1.3,
+                         xanchor='right',
+                         yanchor='top',
+                         pad=dict(t=0, r=10),
+                         buttons=[dict(label='Play',
+                                       method='animate',
+                                       args=[None])])
+                ],
+                sliders=sliders
+            )
+    return frames, layout
+
 def generate_frames_layout(pts, skeleton, human36m_kpts_name, x_range = [-2, 5], y_range = [-2, 2], z_range = [-2, 5]):
     frames = []
 
